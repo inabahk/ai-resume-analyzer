@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Resume Analyzer</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --border: #1e1e2e;
+    --accent: #7c3aed;
+    --accent2: #06b6d4;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --green: #10b981;
+    --yellow: #f59e0b;
+    --red: #ef4444;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Mono', monospace; min-height: 100vh; }
+
+  header {
+    padding: 2rem 2rem 1rem;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 1rem;
+  }
+  .logo { font-family: 'Syne', sans-serif; font-size: 1.5rem; font-weight: 800; }
+  .logo span { color: var(--accent); }
+  .badge { background: var(--accent); color: white; font-size: 0.65rem; padding: 2px 8px; border-radius: 999px; font-family: 'Syne', sans-serif; font-weight: 600; letter-spacing: 0.05em; }
+
+  main { max-width: 900px; margin: 0 auto; padding: 3rem 1.5rem; }
+
+  h1 { font-family: 'Syne', sans-serif; font-size: clamp(2rem, 5vw, 3.5rem); font-weight: 800; line-height: 1.1; margin-bottom: 0.75rem; }
+  h1 em { color: var(--accent); font-style: normal; }
+  .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 3rem; }
+
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    padding: 3rem 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 1.5rem;
+    position: relative;
+  }
+  .upload-zone:hover, .upload-zone.drag { border-color: var(--accent); background: rgba(124,58,237,0.05); }
+  .upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .upload-icon { font-size: 2.5rem; margin-bottom: 1rem; }
+  .upload-zone p { color: var(--muted); font-size: 0.85rem; }
+  .upload-zone strong { color: var(--text); font-family: 'Syne', sans-serif; font-size: 1.1rem; display: block; margin-bottom: 0.5rem; }
+
+  .divider { display: flex; align-items: center; gap: 1rem; margin: 1.5rem 0; color: var(--muted); font-size: 0.8rem; }
+  .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  textarea {
+    width: 100%; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); font-family: 'DM Mono', monospace;
+    font-size: 0.8rem; padding: 1rem; resize: vertical; min-height: 160px;
+    outline: none; transition: border-color 0.2s;
+  }
+  textarea:focus { border-color: var(--accent); }
+  textarea::placeholder { color: var(--muted); }
+
+  button.analyze-btn {
+    width: 100%; padding: 1rem; background: var(--accent); color: white;
+    border: none; border-radius: 8px; font-family: 'Syne', sans-serif;
+    font-size: 1rem; font-weight: 700; cursor: pointer; margin-top: 1rem;
+    transition: all 0.2s; letter-spacing: 0.02em;
+  }
+  button.analyze-btn:hover { background: #6d28d9; transform: translateY(-1px); }
+  button.analyze-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  #results { display: none; margin-top: 3rem; animation: fadeIn 0.4s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+  .score-hero {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: 2.5rem; text-align: center; margin-bottom: 1.5rem; position: relative; overflow: hidden;
+  }
+  .score-hero::before {
+    content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+    background: radial-gradient(circle at center, rgba(124,58,237,0.08) 0%, transparent 60%);
+  }
+  .grade { font-family: 'Syne', sans-serif; font-size: 5rem; font-weight: 800; line-height: 1; }
+  .grade.A { color: var(--green); }
+  .grade.B { color: var(--accent2); }
+  .grade.C { color: var(--yellow); }
+  .grade.D { color: var(--red); }
+  .score-num { font-family: 'Syne', sans-serif; font-size: 1.2rem; color: var(--muted); margin-top: 0.5rem; }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+  @media (max-width: 600px) { .grid { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 1.5rem;
+  }
+  .card h3 { font-family: 'Syne', sans-serif; font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 1rem; }
+
+  .stat-row { display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0; border-bottom: 1px solid var(--border); font-size: 0.82rem; }
+  .stat-row:last-child { border: none; }
+  .stat-val { color: var(--accent2); font-weight: 500; }
+
+  .score-bar { margin-bottom: 0.75rem; }
+  .score-bar-label { display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--muted); margin-bottom: 0.3rem; }
+  .bar-track { height: 6px; background: var(--border); border-radius: 999px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width 1s ease; }
+
+  .skill-tag { display: inline-block; background: rgba(124,58,237,0.15); border: 1px solid rgba(124,58,237,0.3); color: var(--accent); border-radius: 6px; padding: 2px 10px; font-size: 0.75rem; margin: 3px; }
+  .skill-category { margin-bottom: 1rem; }
+  .skill-category h4 { font-size: 0.75rem; color: var(--muted); margin-bottom: 0.4rem; text-transform: uppercase; }
+
+  .suggestion {
+    background: var(--surface); border-left: 3px solid var(--accent);
+    border-radius: 0 8px 8px 0; padding: 0.9rem 1rem; margin-bottom: 0.75rem;
+    font-size: 0.83rem; line-height: 1.6;
+  }
+  .suggestion::before { content: '→ '; color: var(--accent); font-weight: 700; }
+
+  #loading { display: none; text-align: center; padding: 3rem; color: var(--muted); }
+  .spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #error { display: none; color: var(--red); background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; padding: 1rem; margin-top: 1rem; font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">resume<span>.</span>ai</div>
+  <span class="badge">AI POWERED</span>
+</header>
+
+<main>
+  <h1>Analyze your resume<br>with <em>AI precision</em></h1>
+  <p class="subtitle">Get scored on skills, impact, and structure. Tailored for AI/ML roles.</p>
+
+  <div class="upload-zone" id="dropzone">
+    <input type="file" id="fileInput" accept=".txt,.pdf,.doc,.docx">
+    <div class="upload-icon">📄</div>
+    <strong>Drop your resume here</strong>
+    <p>Supports .txt, .pdf, .doc, .docx</p>
+  </div>
+
+  <div class="divider">or paste text directly</div>
+
+  <textarea id="resumeText" placeholder="Paste your resume text here...&#10;&#10;e.g. John Doe | john@email.com&#10;&#10;EXPERIENCE&#10;AI Engineer at Acme Corp..."></textarea>
+
+  <button class="analyze-btn" onclick="analyze()" id="analyzeBtn">Analyze Resume →</button>
+  <div id="error"></div>
+
+  <div id="loading">
+    <div class="spinner"></div>
+    <p>Analyzing your resume...</p>
+  </div>
+
+  <div id="results">
+    <div class="score-hero">
+      <div class="grade" id="grade">-</div>
+      <div class="score-num" id="scoreNum">0 / 100</div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h3>Score Breakdown</h3>
+        <div id="scoreBreakdown"></div>
+      </div>
+      <div class="card">
+        <h3>Resume Stats</h3>
+        <div id="stats"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:1rem">
+      <h3>Detected Skills</h3>
+      <div id="skills"></div>
+    </div>
+
+    <div class="card">
+      <h3>💡 Suggestions to Improve</h3>
+      <div id="suggestions"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+const API = '';
+
+document.getElementById('dropzone').addEventListener('dragover', e => { e.preventDefault(); e.currentTarget.classList.add('drag'); });
+document.getElementById('dropzone').addEventListener('dragleave', e => e.currentTarget.classList.remove('drag'));
+document.getElementById('dropzone').addEventListener('drop', e => {
+  e.preventDefault(); e.currentTarget.classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if (file) handleFile(file);
+});
+document.getElementById('fileInput').addEventListener('change', e => {
+  if (e.target.files[0]) handleFile(e.target.files[0]);
+});
+
+async function handleFile(file) {
+  document.getElementById('dropzone').querySelector('strong').textContent = file.name;
+}
+
+async function analyze() {
+  const text = document.getElementById('resumeText').value.trim();
+  const fileInput = document.getElementById('fileInput');
+  const btn = document.getElementById('analyzeBtn');
+  const err = document.getElementById('error');
+
+  err.style.display = 'none';
+  document.getElementById('results').style.display = 'none';
+
+  if (!text && !fileInput.files[0]) {
+    err.textContent = 'Please paste your resume text or upload a file.';
+    err.style.display = 'block'; return;
+  }
+
+  btn.disabled = true;
+  document.getElementById('loading').style.display = 'block';
+
+  try {
+    let res;
+    if (fileInput.files[0] && !text) {
+      const form = new FormData();
+      form.append('file', fileInput.files[0]);
+      res = await fetch(API + '/analyze', { method: 'POST', body: form });
+    } else {
+      res = await fetch(API + '/analyze-text', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+      });
+    }
+    if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'Analysis failed'); }
+    const data = await res.json();
+    renderResults(data);
+  } catch (e) {
+    err.textContent = e.message;
+    err.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    document.getElementById('loading').style.display = 'none';
+  }
+}
+
+function renderResults(d) {
+  document.getElementById('grade').textContent = d.grade;
+  document.getElementById('grade').className = 'grade ' + d.grade;
+  document.getElementById('scoreNum').textContent = d.overall_score + ' / 100';
+
+  const maxes = { skills: 25, sections: 20, impact_language: 20, length: 15, quantification: 20 };
+  const labels = { skills: 'Skills', sections: 'Sections', impact_language: 'Impact Language', length: 'Detail & Length', quantification: 'Quantification' };
+  let bHtml = '';
+  for (const [k, v] of Object.entries(d.score_breakdown)) {
+    const pct = Math.round((v / maxes[k]) * 100);
+    bHtml += `<div class="score-bar"><div class="score-bar-label"><span>${labels[k]}</span><span>${v}/${maxes[k]}</span></div><div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div></div>`;
+  }
+  document.getElementById('scoreBreakdown').innerHTML = bHtml;
+
+  const s = d.stats;
+  document.getElementById('stats').innerHTML = `
+    <div class="stat-row"><span>Word Count</span><span class="stat-val">${s.word_count}</span></div>
+    <div class="stat-row"><span>Skills Found</span><span class="stat-val">${s.total_skills_found}</span></div>
+    <div class="stat-row"><span>Sections Found</span><span class="stat-val">${s.sections_found}</span></div>
+    <div class="stat-row"><span>Action Verbs</span><span class="stat-val">${s.action_verbs_found}</span></div>`;
+
+  let skillHtml = '';
+  for (const [cat, skills] of Object.entries(d.detected_skills)) {
+    skillHtml += `<div class="skill-category"><h4>${cat}</h4>${skills.map(s => `<span class="skill-tag">${s}</span>`).join('')}</div>`;
+  }
+  if (!skillHtml) skillHtml = '<p style="color:var(--muted);font-size:0.85rem">No known skills detected. Add your tech stack!</p>';
+  document.getElementById('skills').innerHTML = skillHtml;
+
+  document.getElementById('suggestions').innerHTML = d.suggestions.map(s => `<div class="suggestion">${s}</div>`).join('');
+  document.getElementById('results').style.display = 'block';
+  document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+}
+</script>
+</body>
+</html>
